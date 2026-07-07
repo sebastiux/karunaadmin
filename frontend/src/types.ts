@@ -192,6 +192,32 @@ export interface CommercialCard {
   updated_at: string;
 }
 
+export type DocRequestStatus = "open" | "submitted" | "fulfilled";
+
+export interface DocRequestFile {
+  id: number;
+  request_id: number;
+  filename: string;
+  content_type: string;
+  size: number;
+  uploaded_by: number | null;
+  created_at: string;
+}
+
+export interface DocRequest {
+  id: number;
+  project_id: number;
+  title: string;
+  description: string;
+  status: DocRequestStatus;
+  created_by: number | null;
+  created_by_name: string | null;
+  created_at: string;
+  recipient_ids: number[];
+  recipient_names: string[];
+  files: DocRequestFile[];
+}
+
 export interface Ticket {
   id: number;
   project_id: number;

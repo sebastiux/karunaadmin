@@ -13,6 +13,7 @@ from app.routers import (
     auth,
     commercial,
     deliverables,
+    doc_requests,
     files,
     kanban,
     monitoring,
@@ -59,6 +60,7 @@ app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(files.router)
 app.include_router(deliverables.router)
+app.include_router(doc_requests.router)
 app.include_router(kanban.router)
 app.include_router(monitoring.router)
 app.include_router(commercial.router)

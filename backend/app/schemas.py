@@ -215,6 +215,37 @@ class FileUploadResult(BaseModel):
     extracted_text: str  # returned so the client can prefill the plan editor
 
 
+# --------------------------- Document requests -------------------------- #
+class DocRequestCreate(BaseModel):
+    title: str
+    description: str = ""
+    recipient_user_ids: list[int] = []
+
+
+class DocRequestFileOut(ORMModel):
+    id: int
+    request_id: int
+    filename: str
+    content_type: str
+    size: int
+    uploaded_by: int | None
+    created_at: datetime
+
+
+class DocRequestOut(BaseModel):
+    id: int
+    project_id: int
+    title: str
+    description: str
+    status: str
+    created_by: int | None
+    created_by_name: str | None = None
+    created_at: datetime
+    recipient_ids: list[int] = []
+    recipient_names: list[str] = []
+    files: list[DocRequestFileOut] = []
+
+
 # --------------------------- Commercial --------------------------------- #
 class CommercialBoardCreate(BaseModel):
     name: str

@@ -326,6 +326,21 @@ textarea { resize: vertical; }
 .btn.danger { color: #fca5a5; }
 .btn.danger:hover { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.4); }
 
+/* document requests */
+.small { font-size: 12px; }
+.req-list { display: flex; flex-direction: column; gap: 12px; }
+.req-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.req-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.req-title { font-weight: 600; font-size: 15px; margin-right: 10px; }
+.req-status { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 9px; border-radius: 20px; }
+.st-open { background: rgba(245,158,11,0.16); color: #fcd34d; }
+.st-submitted { background: rgba(99,102,241,0.18); color: #c7c2ff; }
+.st-fulfilled { background: rgba(34,197,94,0.15); color: #86efac; }
+.req-admin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.req-desc { color: var(--muted); font-size: 14px; margin: 8px 0 0; }
+.req-files { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 10px; }
+.req-upload { margin-top: 4px; }
+
 @media (max-width: 860px) {
   .mainnav { display: none; }
 }

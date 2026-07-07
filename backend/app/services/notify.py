@@ -144,6 +144,35 @@ def commercial_card_assigned(to_email: str, to_name: str, title: str) -> None:
     _send([to_email], f"Opportunity assigned: {title}", html)
 
 
+def doc_request_created(
+    to_email: str, to_name: str, title: str, description: str,
+    project_name: str, project_id: int,
+) -> None:
+    body = (
+        f"Hi {to_name},<br><br>The team has requested a document from you on "
+        f"<b>{project_name}</b>:<br><br><b>{title}</b>"
+    )
+    if description:
+        body += f"<br><span style='color:#6b7280'>{description}</span>"
+    body += "<br><br>Please sign in and upload the requested file(s)."
+    html = _wrap("Document requested", body, f"/projects/{project_id}", "Upload document")
+    _send([to_email], f"Document requested: {title}", html)
+
+
+def doc_request_submitted(
+    to_emails: list[str], title: str, project_name: str,
+    submitter_name: str, project_id: int,
+) -> None:
+    html = _wrap(
+        "A requested document was uploaded",
+        f"<b>{submitter_name}</b> uploaded document(s) for the request "
+        f"<b>{title}</b> on <b>{project_name}</b>.",
+        f"/projects/{project_id}",
+        "Review documents",
+    )
+    _send(to_emails, f"Document uploaded: {title}", html)
+
+
 def user_welcome(to_email: str, to_name: str, role: str, temp_password: str) -> None:
     html = _wrap(
         "Welcome to Karuna Admin",

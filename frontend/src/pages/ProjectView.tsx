@@ -1,29 +1,36 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
-import { isDevAdmin, type ProjectDetail } from "../types";
+import { isDevAdmin, isDevTeam, type ProjectDetail } from "../types";
 import { useAuth } from "../auth";
 import SetupPanel from "../panels/SetupPanel";
 import CodeReviewPanel from "../panels/CodeReviewPanel";
 import DeliverablesPanel from "../panels/DeliverablesPanel";
 import MonitoringPanel from "../panels/MonitoringPanel";
+import DocumentRequestsPanel from "../panels/DocumentRequestsPanel";
 
-type TabId = "setup" | "code" | "deliverables" | "monitoring";
+type TabId = "setup" | "code" | "deliverables" | "requests" | "monitoring";
 
-const TABS: { id: TabId; label: string; hint: string }[] = [
+const ALL_TABS: { id: TabId; label: string; hint: string }[] = [
   { id: "setup", label: "① Setup", hint: "Master plan" },
   { id: "code", label: "Code Review", hint: "Kanban board" },
   { id: "deliverables", label: "Deliverables", hint: "Client + AI analysis" },
+  { id: "requests", label: "Requested Documents", hint: "From clients" },
   { id: "monitoring", label: "Client Monitoring", hint: "Visual progress" },
 ];
+
+// Clients get a restricted view: only their document requests + monitoring.
+const CLIENT_TABS: TabId[] = ["requests", "monitoring"];
 
 export default function ProjectView() {
   const { id } = useParams();
   const projectId = Number(id);
   const { user } = useAuth();
   const nav = useNavigate();
+  const internal = isDevTeam(user?.role);
+  const tabs = internal ? ALL_TABS : ALL_TABS.filter((t) => CLIENT_TABS.includes(t.id));
   const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [tab, setTab] = useState<TabId>("setup");
+  const [tab, setTab] = useState<TabId>(internal ? "setup" : "requests");
   const [loading, setLoading] = useState(true);
 
   async function deleteProject() {
@@ -38,8 +45,10 @@ export default function ProjectView() {
     try {
       const p = await api.project(projectId);
       setProject(p);
-      // Jump straight to monitoring once the project is configured.
-      setTab((t) => (t === "setup" && p.plan_points.length > 0 ? "deliverables" : t));
+      // For internal users, jump past Setup once the project is configured.
+      if (internal) {
+        setTab((t) => (t === "setup" && p.plan_points.length > 0 ? "deliverables" : t));
+      }
     } finally {
       setLoading(false);
     }
@@ -73,7 +82,7 @@ export default function ProjectView() {
       </div>
 
       <nav className="tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             className={`tab ${tab === t.id ? "active" : ""}`}
@@ -86,12 +95,15 @@ export default function ProjectView() {
       </nav>
 
       <section className="panel">
-        {tab === "setup" && (
+        {tab === "setup" && internal && (
           <SetupPanel project={project} isAdmin={isDevAdmin(user?.role)} onSaved={load} />
         )}
-        {tab === "code" && <CodeReviewPanel projectId={projectId} />}
-        {tab === "deliverables" && user && (
+        {tab === "code" && internal && <CodeReviewPanel projectId={projectId} />}
+        {tab === "deliverables" && internal && user && (
           <DeliverablesPanel project={project} user={user} />
+        )}
+        {tab === "requests" && user && (
+          <DocumentRequestsPanel project={project} user={user} />
         )}
         {tab === "monitoring" && <MonitoringPanel projectId={projectId} />}
       </section>

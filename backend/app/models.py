@@ -279,6 +279,70 @@ class DeliverableFile(Base):
     deliverable: Mapped["Deliverable"] = relationship(back_populates="files")
 
 
+class DocRequestStatus(str, enum.Enum):
+    open = "open"            # awaiting client upload
+    submitted = "submitted"  # client uploaded document(s)
+    fulfilled = "fulfilled"  # accepted by the internal team
+
+
+class DocumentRequest(Base):
+    """A request from the internal team asking specific client users to upload
+    documentation for a project."""
+
+    __tablename__ = "document_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(500))
+    description: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(32), default=DocRequestStatus.open.value)
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    recipients: Mapped[list["DocumentRequestRecipient"]] = relationship(
+        back_populates="request", cascade="all, delete-orphan"
+    )
+    files: Mapped[list["DocumentRequestFile"]] = relationship(
+        back_populates="request", cascade="all, delete-orphan"
+    )
+
+
+class DocumentRequestRecipient(Base):
+    __tablename__ = "document_request_recipients"
+    __table_args__ = (
+        UniqueConstraint("request_id", "user_id", name="uq_docreq_user"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(
+        ForeignKey("document_requests.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+
+    request: Mapped["DocumentRequest"] = relationship(back_populates="recipients")
+
+
+class DocumentRequestFile(Base):
+    __tablename__ = "document_request_files"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(
+        ForeignKey("document_requests.id", ondelete="CASCADE")
+    )
+    filename: Mapped[str] = mapped_column(String(500))
+    content_type: Mapped[str] = mapped_column(String(200), default="")
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    data: Mapped[bytes] = mapped_column(FileBlob)
+    uploaded_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    request: Mapped["DocumentRequest"] = relationship(back_populates="files")
+
+
 # --------------------------------------------------------------------------- #
 # Commercial workspace — AI-free boards for sourcing NEW IT projects.
 # Global (not tied to a delivery Project); worked by the commercial team.

@@ -4,6 +4,9 @@ import type {
   CommercialCard,
   Deliverable,
   DeliverableFile,
+  DocRequest,
+  DocRequestFile,
+  DocRequestStatus,
   KanbanCard,
   KanbanColumnId,
   MonitoringOverview,
@@ -296,4 +299,74 @@ export const api = {
 
   // cross-project tickets
   tickets: () => request<Ticket[]>("/api/tickets"),
+
+  // document requests
+  docRequests: (projectId: number) =>
+    request<DocRequest[]>(`/api/projects/${projectId}/doc-requests`),
+  createDocRequest: (
+    projectId: number,
+    body: { title: string; description: string; recipient_user_ids: number[] }
+  ) =>
+    request<DocRequest>(`/api/projects/${projectId}/doc-requests`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  setDocRequestStatus: (
+    projectId: number,
+    id: number,
+    status: DocRequestStatus
+  ) =>
+    request<DocRequest>(
+      `/api/projects/${projectId}/doc-requests/${id}/status?status=${status}`,
+      { method: "PATCH" }
+    ),
+  deleteDocRequest: (projectId: number, id: number) =>
+    request<void>(`/api/projects/${projectId}/doc-requests/${id}`, {
+      method: "DELETE",
+    }),
+  uploadDocRequestFile: async (projectId: number, id: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(
+      `${BASE}/api/projects/${projectId}/doc-requests/${id}/files`,
+      { method: "POST", headers, body: form }
+    );
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        detail = (await res.json()).detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail || "Upload failed");
+    }
+    return res.json() as Promise<DocRequestFile>;
+  },
+  downloadDocRequestFile: async (
+    projectId: number,
+    id: number,
+    f: DocRequestFile
+  ) => {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(
+      `${BASE}/api/projects/${projectId}/doc-requests/${id}/files/${f.id}/download`,
+      { headers }
+    );
+    if (!res.ok) throw new Error("Download failed");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = f.filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  deleteDocRequestFile: (projectId: number, id: number, fileId: number) =>
+    request<void>(
+      `/api/projects/${projectId}/doc-requests/${id}/files/${fileId}`,
+      { method: "DELETE" }
+    ),
 };
