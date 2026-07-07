@@ -1,0 +1,56 @@
+# Local development stack. Mirrors the Railway topology (4 services).
+#   docker compose up --build
+# Then open http://localhost:5173  (admin@karuna.app / admin123)
+
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: karunaadmin
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: mysql+pymysql://root:root@db:3306/karunaadmin
+      JWT_SECRET: dev-secret-change-me
+      # Leave GROK_API_KEY empty to run AI in deterministic mock mode.
+      GROK_API_KEY: "${GROK_API_KEY:-}"
+      GROK_MODEL: grok-4.3
+      CORS_ORIGINS: "*"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  realtime:
+    build: ./realtime
+    environment:
+      PORT: "8090"
+    ports:
+      - "8090:8090"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Frontend talks to the backend directly in the browser.
+        VITE_API_URL: "http://localhost:8000"
+        VITE_REALTIME_URL: "ws://localhost:8090"
+    ports:
+      - "5173:8080"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
