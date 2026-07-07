@@ -88,9 +88,22 @@ export interface Deliverable {
   status: DeliverableStatus;
   ai_generated: number;
   client_visible: number;
+  assignee_id: number | null;
+  assignee_name: string | null;
   order: number;
   created_at: string;
-  latest_analysis: AIAnalysis | null;
+  file_count: number;
+  latest_analysis: AIAnalysis | null; // internal viewers only
+}
+
+export interface DeliverableFile {
+  id: number;
+  deliverable_id: number;
+  filename: string;
+  content_type: string;
+  size: number;
+  uploaded_by: number | null;
+  created_at: string;
 }
 
 export type KanbanColumnId =

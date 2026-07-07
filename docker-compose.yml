@@ -26,6 +26,10 @@ services:
       # Leave GROK_API_KEY empty to run AI in deterministic mock mode.
       GROK_API_KEY: "${GROK_API_KEY:-}"
       GROK_MODEL: grok-4.3
+      # Leave RESEND_API_KEY empty to log notifications instead of emailing.
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      RESEND_FROM: "${RESEND_FROM:-Karuna Admin <onboarding@resend.dev>}"
+      APP_BASE_URL: "http://localhost:5173"
       CORS_ORIGINS: "*"
     ports:
       - "8000:8000"

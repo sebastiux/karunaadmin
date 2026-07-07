@@ -1,5 +1,5 @@
 """Code-review Kanban board. Deliberately AI-free; multi-developer follow-up."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, require_roles
@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models import KanbanCard, Project, User
 from app.permissions import DEV_TEAM
 from app.schemas import KanbanCardCreate, KanbanCardOut, KanbanCardUpdate
+from app.services import notify
 
 router = APIRouter(prefix="/api/projects/{project_id}/cards", tags=["kanban"])
 
@@ -42,10 +43,23 @@ def list_cards(
     return [_to_out(db, c) for c in cards]
 
 
+def _notify_assignee(background: BackgroundTasks, db: Session, card: KanbanCard):
+    if not card.assignee_id:
+        return
+    assignee = db.get(User, card.assignee_id)
+    project = db.get(Project, card.project_id)
+    if assignee and project:
+        background.add_task(
+            notify.dev_card_assigned,
+            assignee.email, assignee.name, card.title, project.name, project.id,
+        )
+
+
 @router.post("", response_model=KanbanCardOut, status_code=201)
 def create_card(
     project_id: int,
     payload: KanbanCardCreate,
+    background: BackgroundTasks,
     _: User = Depends(require_roles(DEV_TEAM)),
     db: Session = Depends(get_db),
 ):
@@ -69,6 +83,7 @@ def create_card(
     db.add(card)
     db.commit()
     db.refresh(card)
+    _notify_assignee(background, db, card)
     return _to_out(db, card)
 
 
@@ -77,16 +92,20 @@ def update_card(
     project_id: int,
     card_id: int,
     payload: KanbanCardUpdate,
+    background: BackgroundTasks,
     _: User = Depends(require_roles(DEV_TEAM)),
     db: Session = Depends(get_db),
 ):
     card = db.get(KanbanCard, card_id)
     if not card or card.project_id != project_id:
         raise HTTPException(status_code=404, detail="Card not found")
+    prev_assignee = card.assignee_id
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(card, k, v)
     db.commit()
     db.refresh(card)
+    if card.assignee_id and card.assignee_id != prev_assignee:
+        _notify_assignee(background, db, card)
     return _to_out(db, card)
 
 

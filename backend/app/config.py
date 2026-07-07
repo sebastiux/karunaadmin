@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     grok_base_url: str = "https://api.x.ai/v1"
     grok_model: str = "grok-4.3"
 
+    # --- Resend (email notifications) --------------------------------------
+    # Empty => notifications are logged only (no email sent).
+    resend_api_key: str = ""
+    resend_from: str = "Karuna Admin <onboarding@resend.dev>"
+    # Public URL of the app, used to build links inside emails.
+    app_base_url: str = ""
+
     # --- CORS / frontend ----------------------------------------------------
     # Comma-separated list of allowed origins. "*" allows all (dev only).
     cors_origins: str = "*"

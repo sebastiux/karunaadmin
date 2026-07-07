@@ -145,12 +145,21 @@ class Deliverable(Base):
     )
     ai_generated: Mapped[int] = mapped_column(Integer, default=0)  # 0/1 flag
     client_visible: Mapped[int] = mapped_column(Integer, default=1)
+    # A deliverable may be assigned to any user, including a client who must
+    # submit its documentation.
+    assignee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     project: Mapped["Project"] = relationship(back_populates="deliverables")
     plan_point: Mapped["PlanPoint"] = relationship(back_populates="deliverables")
+    assignee: Mapped["User"] = relationship()
     analyses: Mapped[list["AIAnalysis"]] = relationship(
+        back_populates="deliverable", cascade="all, delete-orphan"
+    )
+    files: Mapped[list["DeliverableFile"]] = relationship(
         back_populates="deliverable", cascade="all, delete-orphan"
     )
 
@@ -223,6 +232,28 @@ class ProjectFile(Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class DeliverableFile(Base):
+    """A document attached to a deliverable — e.g. documentation a client (or a
+    developer) submits as the deliverable's evidence of completion."""
+
+    __tablename__ = "deliverable_files"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    deliverable_id: Mapped[int] = mapped_column(
+        ForeignKey("deliverables.id", ondelete="CASCADE")
+    )
+    filename: Mapped[str] = mapped_column(String(500))
+    content_type: Mapped[str] = mapped_column(String(200), default="")
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    uploaded_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    deliverable: Mapped["Deliverable"] = relationship(back_populates="files")
 
 
 # --------------------------------------------------------------------------- #

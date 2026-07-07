@@ -75,8 +75,8 @@ export default function ProjectView() {
           <SetupPanel project={project} isAdmin={isDevAdmin(user?.role)} onSaved={load} />
         )}
         {tab === "code" && <CodeReviewPanel projectId={projectId} />}
-        {tab === "deliverables" && (
-          <DeliverablesPanel project={project} isAdmin={isDevAdmin(user?.role)} />
+        {tab === "deliverables" && user && (
+          <DeliverablesPanel project={project} user={user} />
         )}
         {tab === "monitoring" && <MonitoringPanel projectId={projectId} />}
       </section>

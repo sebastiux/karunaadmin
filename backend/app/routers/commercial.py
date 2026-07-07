@@ -3,13 +3,14 @@
 AI-free, worked by the commercial team. Board management is limited to
 commercial admins; card CRUD/assignment is open to the whole commercial team.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth import require_roles
 from app.database import get_db
 from app.models import CommercialBoard, CommercialCard, User
 from app.permissions import COMMERCIAL_ADMINS, COMMERCIAL_TEAM
+from app.services import notify
 from app.schemas import (
     CommercialBoardCreate,
     CommercialBoardOut,
@@ -82,10 +83,19 @@ def list_cards(
     return [_card_out(db, c) for c in cards]
 
 
+def _notify_assignee(background: BackgroundTasks, db: Session, card: CommercialCard):
+    if not card.assignee_id:
+        return
+    u = db.get(User, card.assignee_id)
+    if u:
+        background.add_task(notify.commercial_card_assigned, u.email, u.name, card.title)
+
+
 @router.post("/boards/{board_id}/cards", response_model=CommercialCardOut, status_code=201)
 def create_card(
     board_id: int,
     payload: CommercialCardCreate,
+    background: BackgroundTasks,
     _: User = Depends(require_roles(COMMERCIAL_TEAM)),
     db: Session = Depends(get_db),
 ):
@@ -111,6 +121,7 @@ def create_card(
     db.add(card)
     db.commit()
     db.refresh(card)
+    _notify_assignee(background, db, card)
     return _card_out(db, card)
 
 
@@ -118,16 +129,20 @@ def create_card(
 def update_card(
     card_id: int,
     payload: CommercialCardUpdate,
+    background: BackgroundTasks,
     _: User = Depends(require_roles(COMMERCIAL_TEAM)),
     db: Session = Depends(get_db),
 ):
     card = db.get(CommercialCard, card_id)
     if not card:
         raise HTTPException(status_code=404, detail="Card not found")
+    prev_assignee = card.assignee_id
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(card, k, v)
     db.commit()
     db.refresh(card)
+    if card.assignee_id and card.assignee_id != prev_assignee:
+        _notify_assignee(background, db, card)
     return _card_out(db, card)
 
 

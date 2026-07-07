@@ -38,6 +38,21 @@ realtime (Node/TS ws)  ──▶  optional live Kanban sync
 OpenAI-compatible xAI API (`https://api.x.ai/v1`, model `grok-4.3`). Set
 `GROK_API_KEY` to enable it; **without a key it runs in deterministic mock mode**
 so the platform is fully runnable — mock analyses are labelled `(mock)`.
+**AI analysis is internal-only** — it is never returned to or shown to clients.
+
+### Email notifications (Resend)
+Set `RESEND_API_KEY` (+ `RESEND_FROM` on a verified domain, and `APP_BASE_URL`
+for links) to email users on assignments and additions — deliverable assigned,
+deliverable submitted (→ dev admins), dev ticket assigned, commercial
+opportunity assigned, and new-user welcome. Without a key, notifications are
+logged only, so nothing breaks. Emails send in the background and never block a
+request.
+
+### Deliverable documents & client submissions
+Deliverables can be **assigned to any user, including a client**. The assignee
+uploads documentation to the deliverable and hits **Submit**; dev admins are
+notified. Files are stored in MySQL. Dev admins can upload/download on any
+deliverable; the assignee can upload/download on theirs.
 
 ## Deploy on Railway (single service)
 

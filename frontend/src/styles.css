@@ -294,6 +294,22 @@ textarea { resize: vertical; }
 .role-comercial { background: #3a2a08; color: #fcd34d; }
 .role-client { background: #123a26; color: #a7f3d0; }
 
+/* ---------- deliverable assignment / files ---------- */
+.deliv-card.assigned-me { border-color: var(--primary); }
+.tag.mine { background: #3b2f6e; color: #c7c2ff; }
+.deliv-metaline { display: flex; gap: 14px; align-items: center; margin-top: 10px; }
+.meta-assignee { font-size: 12px; color: var(--muted); }
+.linkish {
+  background: none; border: none; color: var(--primary-hover); cursor: pointer;
+  font-size: 12px; padding: 0;
+}
+.linkish:hover { text-decoration: underline; }
+.deliv-files {
+  background: var(--bg-2); border-top: 1px solid var(--border); padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.deliv-upload { margin-top: 4px; }
+
 @media (max-width: 860px) {
   .mainnav { display: none; }
 }

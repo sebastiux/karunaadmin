@@ -83,6 +83,7 @@ class DeliverableCreate(BaseModel):
     acceptance_criteria: str = ""
     plan_point_id: int | None = None
     client_visible: bool = True
+    assignee_id: int | None = None
 
 
 class DeliverableUpdate(BaseModel):
@@ -92,6 +93,17 @@ class DeliverableUpdate(BaseModel):
     status: DeliverableStatus | None = None
     plan_point_id: int | None = None
     client_visible: bool | None = None
+    assignee_id: int | None = None
+
+
+class DeliverableFileOut(ORMModel):
+    id: int
+    deliverable_id: int
+    filename: str
+    content_type: str
+    size: int
+    uploaded_by: int | None
+    created_at: datetime
 
 
 class AIAnalysisOut(ORMModel):
@@ -117,8 +129,12 @@ class DeliverableOut(ORMModel):
     status: DeliverableStatus
     ai_generated: int
     client_visible: int
+    assignee_id: int | None
+    assignee_name: str | None = None
     order: int
     created_at: datetime
+    file_count: int = 0
+    # AI analysis is INTERNAL ONLY — never populated for client viewers.
     latest_analysis: AIAnalysisOut | None = None
 
 

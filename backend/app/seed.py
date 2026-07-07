@@ -18,38 +18,50 @@ def init_db() -> None:
     _ensure_commercial_board()
 
 
-def _migrate_schema() -> None:
-    """Bring an already-deployed database up to date without a migration tool.
-
-    The `users.role` column was originally a MySQL ENUM('admin','developer',
-    'client'); the role set has since grown. Widen it to VARCHAR so new roles
-    are accepted, and map the legacy 'developer' value to 'dev'.
-    """
-    if engine.dialect.name != "mysql":
-        return  # SQLite stores Enum as VARCHAR already — nothing to do.
+def _ensure_column(table: str, column: str, ddl_type: str) -> None:
+    """Add a column to an existing table if it's missing (MySQL & SQLite)."""
     try:
-        with engine.begin() as conn:
-            col = conn.execute(
-                text(
-                    "SELECT DATA_TYPE FROM information_schema.COLUMNS "
-                    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' "
-                    "AND COLUMN_NAME = 'role'"
-                )
-            ).scalar()
-            if col and col.lower() == "enum":
-                conn.execute(
+        insp = inspect(engine)
+        if table not in insp.get_table_names():
+            return  # create_all will build it fresh with the column present
+        existing = {c["name"] for c in insp.get_columns(table)}
+        if column not in existing:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}"))
+            logger.info("Added column %s.%s", table, column)
+    except Exception as exc:
+        logger.warning("Could not ensure column %s.%s: %s", table, column, exc)
+
+
+def _migrate_schema() -> None:
+    """Bring an already-deployed database up to date without a migration tool."""
+    # 1. Widen users.role ENUM -> VARCHAR and rename the legacy 'developer' role.
+    if engine.dialect.name == "mysql":
+        try:
+            with engine.begin() as conn:
+                col = conn.execute(
                     text(
-                        "ALTER TABLE users MODIFY COLUMN role "
-                        "VARCHAR(32) NOT NULL DEFAULT 'dev'"
+                        "SELECT DATA_TYPE FROM information_schema.COLUMNS "
+                        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' "
+                        "AND COLUMN_NAME = 'role'"
                     )
+                ).scalar()
+                if col and col.lower() == "enum":
+                    conn.execute(
+                        text(
+                            "ALTER TABLE users MODIFY COLUMN role "
+                            "VARCHAR(32) NOT NULL DEFAULT 'dev'"
+                        )
+                    )
+                    logger.info("Migrated users.role ENUM -> VARCHAR(32)")
+                conn.execute(
+                    text("UPDATE users SET role = 'dev' WHERE role = 'developer'")
                 )
-                logger.info("Migrated users.role ENUM -> VARCHAR(32)")
-            # Legacy value rename (safe to run repeatedly).
-            conn.execute(
-                text("UPDATE users SET role = 'dev' WHERE role = 'developer'")
-            )
-    except Exception as exc:  # never block startup on migration hiccups
-        logger.warning("Schema migration skipped: %s", exc)
+        except Exception as exc:  # never block startup on migration hiccups
+            logger.warning("Role migration skipped: %s", exc)
+
+    # 2. New column added after the deliverables table already existed.
+    _ensure_column("deliverables", "assignee_id", "INTEGER NULL")
 
 
 def _ensure_admin() -> None:

@@ -1,5 +1,5 @@
 """Auth + minimal user management endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth import (
@@ -12,6 +12,7 @@ from app.auth import (
 from app.database import get_db
 from app.models import User, UserRole
 from app.permissions import ALL_ADMINS
+from app.services import notify
 from app.schemas import LoginRequest, TokenResponse, UserCreate, UserOut
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -52,6 +53,7 @@ _CREATABLE: dict[str, set[UserRole]] = {
 @router.post("/users", response_model=UserOut, status_code=201)
 def create_user(
     payload: UserCreate,
+    background: BackgroundTasks,
     creator: User = Depends(require_roles(ALL_ADMINS)),
     db: Session = Depends(get_db),
 ):
@@ -63,13 +65,18 @@ def create_user(
         )
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=409, detail="Email already registered")
+    role_value = payload.role.value if hasattr(payload.role, "value") else payload.role
     user = User(
         email=payload.email,
         name=payload.name,
         password_hash=hash_password(payload.password),
-        role=payload.role.value if hasattr(payload.role, "value") else payload.role,
+        role=role_value,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+    # Welcome email with credentials (background; no-op without Resend key).
+    background.add_task(
+        notify.user_welcome, user.email, user.name, role_value, payload.password
+    )
     return user

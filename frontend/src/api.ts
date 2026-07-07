@@ -3,6 +3,7 @@ import type {
   CommercialBoard,
   CommercialCard,
   Deliverable,
+  DeliverableFile,
   KanbanCard,
   KanbanColumnId,
   MonitoringOverview,
@@ -117,6 +118,60 @@ export const api = {
   analyses: (projectId: number, id: number) =>
     request<AIAnalysis[]>(
       `/api/projects/${projectId}/deliverables/${id}/analyses`
+    ),
+  submitDeliverable: (projectId: number, id: number) =>
+    request<Deliverable>(
+      `/api/projects/${projectId}/deliverables/${id}/submit`,
+      { method: "POST" }
+    ),
+  deliverableFiles: (projectId: number, id: number) =>
+    request<DeliverableFile[]>(
+      `/api/projects/${projectId}/deliverables/${id}/files`
+    ),
+  uploadDeliverableFile: async (projectId: number, id: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(
+      `${BASE}/api/projects/${projectId}/deliverables/${id}/files`,
+      { method: "POST", headers, body: form }
+    );
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        detail = (await res.json()).detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail || "Upload failed");
+    }
+    return res.json() as Promise<DeliverableFile>;
+  },
+  downloadDeliverableFile: async (
+    projectId: number,
+    id: number,
+    f: DeliverableFile
+  ) => {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(
+      `${BASE}/api/projects/${projectId}/deliverables/${id}/files/${f.id}/download`,
+      { headers }
+    );
+    if (!res.ok) throw new Error("Download failed");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = f.filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  deleteDeliverableFile: (projectId: number, id: number, fileId: number) =>
+    request<void>(
+      `/api/projects/${projectId}/deliverables/${id}/files/${fileId}`,
+      { method: "DELETE" }
     ),
 
   // kanban
