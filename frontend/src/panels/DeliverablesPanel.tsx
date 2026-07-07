@@ -56,7 +56,7 @@ export default function DeliverablesPanel({
   }
   useEffect(() => {
     load();
-    if (isAdmin) api.users().then(setUsers).catch(() => setUsers([]));
+    if (isAdmin) api.assignableUsers(project.id).then(setUsers).catch(() => setUsers([]));
   }, [project.id]);
 
   const pointTitle = useMemo(() => {
@@ -88,6 +88,11 @@ export default function DeliverablesPanel({
   }
   async function assign(d: Deliverable, assignee_id: number | null) {
     patch(d.id, await api.updateDeliverable(project.id, d.id, { assignee_id }));
+  }
+  async function toggleCompleted(d: Deliverable) {
+    patch(d.id, await api.updateDeliverable(project.id, d.id, {
+      completed: d.completed ? 0 : 1,
+    }));
   }
   async function analyze(d: Deliverable) {
     setAnalyzing(d.id);
@@ -138,7 +143,18 @@ export default function DeliverablesPanel({
                 <div className="deliv-main">
                   <div className="deliv-info">
                     <div className="deliv-title-row">
-                      <span className="deliv-title">{d.title}</span>
+                      {isAdmin ? (
+                        <input
+                          type="checkbox"
+                          className="complete-check"
+                          checked={!!d.completed}
+                          onChange={() => toggleCompleted(d)}
+                          title="Mark assignment completed"
+                        />
+                      ) : d.completed ? (
+                        <span className="tag done">✓ completed</span>
+                      ) : null}
+                      <span className={`deliv-title ${d.completed ? "is-done" : ""}`}>{d.title}</span>
                       {internal && d.ai_generated ? <span className="tag ai">AI</span> : null}
                       {internal && !d.client_visible ? <span className="tag hidden">internal</span> : null}
                       {mine ? <span className="tag mine">assigned to you</span> : null}
@@ -198,7 +214,12 @@ export default function DeliverablesPanel({
                             {Math.round(d.latest_analysis.score)}<span className="score-of">/100</span>
                           </div>
                         )}
-                        <button className="btn small" onClick={() => analyze(d)} disabled={analyzing === d.id}>
+                        <button
+                          className="btn small"
+                          onClick={() => analyze(d)}
+                          disabled={analyzing === d.id || d.file_count === 0}
+                          title={d.file_count === 0 ? "Upload a document before running AI analysis" : "Analyze against the master plan"}
+                        >
                           {analyzing === d.id ? "Analyzing…" : d.latest_analysis ? "Re-analyze" : "AI analysis"}
                         </button>
                         {d.latest_analysis && (

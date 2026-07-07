@@ -6,6 +6,7 @@ plus the average AI alignment score where analyses exist.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.access import require_project_access
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import (
@@ -30,15 +31,22 @@ def _avg(values: list[float]) -> float | None:
     return round(sum(values) / len(values), 1) if values else None
 
 
+def _is_done(d: Deliverable) -> bool:
+    # A deliverable counts as complete if explicitly marked completed, or if its
+    # workflow status is approved/submitted.
+    return bool(d.completed) or DeliverableStatus(d.status) in _DONE_STATES
+
+
 @router.get("", response_model=MonitoringOverview)
 def project_monitoring(
     project_id: int,
-    _: User = Depends(get_current_user),
+    current: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     project = db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    require_project_access(db, current, project_id)
 
     points = (
         db.query(PlanPoint)
@@ -79,7 +87,7 @@ def project_monitoring(
     for p in points:
         group = by_point.get(p.id, [])
         total = len(group)
-        completed = sum(1 for d in group if DeliverableStatus(d.status) in _DONE_STATES)
+        completed = sum(1 for d in group if _is_done(d))
         scores = [latest_scores[d.id] for d in group if d.id in latest_scores]
         all_scores.extend(scores)
         total_all += total
@@ -100,7 +108,7 @@ def project_monitoring(
     orphan = by_point.get(None, [])
     if orphan:
         total = len(orphan)
-        completed = sum(1 for d in orphan if DeliverableStatus(d.status) in _DONE_STATES)
+        completed = sum(1 for d in orphan if _is_done(d))
         scores = [latest_scores[d.id] for d in orphan if d.id in latest_scores]
         all_scores.extend(scores)
         total_all += total

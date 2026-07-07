@@ -88,6 +88,7 @@ export interface Deliverable {
   status: DeliverableStatus;
   ai_generated: number;
   client_visible: number;
+  completed: number;
   assignee_id: number | null;
   assignee_name: string | null;
   order: number;

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app.access import require_project_access
 from app.auth import get_current_user, require_roles
 from app.database import get_db
 from app.models import Project, ProjectFile, User
@@ -31,10 +32,11 @@ def _to_out(f: ProjectFile) -> ProjectFileOut:
 @router.get("", response_model=list[ProjectFileOut])
 def list_files(
     project_id: int,
-    _: User = Depends(get_current_user),
+    current: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     _project_or_404(db, project_id)
+    require_project_access(db, current, project_id)
     files = (
         db.query(ProjectFile)
         .filter(ProjectFile.project_id == project_id)
@@ -76,9 +78,10 @@ async def upload_file(
 def download_file(
     project_id: int,
     file_id: int,
-    _: User = Depends(get_current_user),
+    current: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_project_access(db, current, project_id)
     pf = db.get(ProjectFile, file_id)
     if not pf or pf.project_id != project_id:
         raise HTTPException(status_code=404, detail="File not found")

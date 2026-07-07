@@ -60,8 +60,9 @@ def _migrate_schema() -> None:
         except Exception as exc:  # never block startup on migration hiccups
             logger.warning("Role migration skipped: %s", exc)
 
-    # 2. New column added after the deliverables table already existed.
+    # 2. New columns added after the deliverables table already existed.
     _ensure_column("deliverables", "assignee_id", "INTEGER NULL")
+    _ensure_column("deliverables", "completed", "INTEGER NOT NULL DEFAULT 0")
 
     # 3. File blob columns were first created as BLOB (64 KB cap). Widen to
     #    LONGBLOB so real documents fit. Idempotent; MySQL only.

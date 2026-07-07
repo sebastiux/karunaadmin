@@ -309,6 +309,22 @@ textarea { resize: vertical; }
   display: flex; flex-direction: column; gap: 8px;
 }
 .deliv-upload { margin-top: 4px; }
+.complete-check { width: 17px; height: 17px; accent-color: #22c55e; cursor: pointer; flex-shrink: 0; }
+.deliv-title.is-done { text-decoration: line-through; color: var(--muted); }
+.tag.done { background: rgba(34,197,94,0.15); color: #86efac; }
+
+/* project picker (client access) */
+.project-picker {
+  border: 1px solid var(--border); border-radius: 9px; padding: 8px;
+  max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+}
+.check-row { display: flex; align-items: center; gap: 9px; margin: 0; padding: 6px 8px; border-radius: 7px; cursor: pointer; }
+.check-row:hover { background: var(--surface-2); }
+.check-row input { width: auto; }
+.check-row span { color: var(--text); font-size: 14px; }
+
+.btn.danger { color: #fca5a5; }
+.btn.danger:hover { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.4); }
 
 @media (max-width: 860px) {
   .mainnav { display: none; }

@@ -207,10 +207,23 @@ export const api = {
     name: string;
     password: string;
     role: Role;
+    project_ids?: number[];
   }) =>
     request<User>("/api/auth/users", {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+  assignableUsers: (projectId: number) =>
+    request<User[]>(`/api/projects/${projectId}/assignable-users`),
+  projectMembers: (projectId: number) =>
+    request<User[]>(`/api/projects/${projectId}/members`),
+  addMember: (projectId: number, userId: number) =>
+    request<User[]>(`/api/projects/${projectId}/members/${userId}`, {
+      method: "POST",
+    }),
+  removeMember: (projectId: number, userId: number) =>
+    request<void>(`/api/projects/${projectId}/members/${userId}`, {
+      method: "DELETE",
     }),
 
   // files

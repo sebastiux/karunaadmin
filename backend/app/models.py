@@ -28,6 +28,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.mysql import LONGBLOB
@@ -117,6 +118,22 @@ class Project(Base):
     )
 
 
+class ProjectMember(Base):
+    """Grants a user (typically a client) access to a specific project.
+
+    Internal users (dev team) can access every project; clients can only access
+    projects they're a member of.
+    """
+
+    __tablename__ = "project_members"
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_project_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class PlanPoint(Base):
     """A single objective/milestone extracted from the master plan."""
 
@@ -150,6 +167,7 @@ class Deliverable(Base):
     )
     ai_generated: Mapped[int] = mapped_column(Integer, default=0)  # 0/1 flag
     client_visible: Mapped[int] = mapped_column(Integer, default=1)
+    completed: Mapped[int] = mapped_column(Integer, default=0)  # 0/1 "done" flag
     # A deliverable may be assigned to any user, including a client who must
     # submit its documentation.
     assignee_id: Mapped[int | None] = mapped_column(

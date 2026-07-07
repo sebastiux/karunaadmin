@@ -34,6 +34,8 @@ class UserCreate(BaseModel):
     name: str
     password: str
     role: UserRole = UserRole.dev
+    # For clients: the projects they should have access to.
+    project_ids: list[int] = []
 
 
 class UserOut(ORMModel):
@@ -94,6 +96,7 @@ class DeliverableUpdate(BaseModel):
     plan_point_id: int | None = None
     client_visible: bool | None = None
     assignee_id: int | None = None
+    completed: bool | None = None
 
 
 class DeliverableFileOut(ORMModel):
@@ -129,6 +132,7 @@ class DeliverableOut(ORMModel):
     status: DeliverableStatus
     ai_generated: int
     client_visible: int
+    completed: int
     assignee_id: int | None
     assignee_name: str | None = None
     order: int

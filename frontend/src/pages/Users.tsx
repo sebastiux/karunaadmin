@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { ROLE_LABELS, isAnyAdmin } from "../types";
-import type { Role, User } from "../types";
+import type { Project, Role, User } from "../types";
 
 // Mirrors backend _CREATABLE in routers/auth.py.
 const CREATABLE: Record<string, Role[]> = {
@@ -79,15 +79,40 @@ function CreateUser({
   const [f, setF] = useState({
     name: "", email: "", password: "", role: allowedRoles[0],
   });
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const isClient = f.role === "client";
+
+  useEffect(() => {
+    // Only needed to scope a client's access.
+    api.projects().then(setProjects).catch(() => setProjects([]));
+  }, []);
+
+  function toggle(id: number) {
+    setSelected((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr("");
+    if (isClient && selected.size === 0) {
+      setErr("Select at least one project this client can access.");
+      return;
+    }
     setBusy(true);
     try {
-      onCreated(await api.createUser(f));
+      onCreated(
+        await api.createUser({
+          ...f,
+          project_ids: isClient ? [...selected] : [],
+        })
+      );
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed");
@@ -112,6 +137,26 @@ function CreateUser({
             <option key={r} value={r}>{ROLE_LABELS[r]}</option>
           ))}
         </select>
+
+        {isClient && (
+          <>
+            <label>Project access (clients see only selected projects)</label>
+            <div className="project-picker">
+              {projects.length === 0 && <p className="muted">No projects available.</p>}
+              {projects.map((p) => (
+                <label key={p.id} className="check-row">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(p.id)}
+                    onChange={() => toggle(p.id)}
+                  />
+                  <span>{p.name}</span>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+
         {err && <div className="alert error">{err}</div>}
         <div className="modal-actions">
           <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { isDevAdmin, type ProjectDetail } from "../types";
 import { useAuth } from "../auth";
@@ -21,9 +21,17 @@ export default function ProjectView() {
   const { id } = useParams();
   const projectId = Number(id);
   const { user } = useAuth();
+  const nav = useNavigate();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [tab, setTab] = useState<TabId>("setup");
   const [loading, setLoading] = useState(true);
+
+  async function deleteProject() {
+    if (!project) return;
+    if (!confirm(`Delete project "${project.name}"? This removes its deliverables, documents and boards. This cannot be undone.`)) return;
+    await api.deleteProject(project.id);
+    nav("/");
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,7 +62,14 @@ export default function ProjectView() {
           <h1>{project.name}</h1>
           <p className="muted">{project.description || "No description"}</p>
         </div>
-        <span className={`status-pill status-${project.status}`}>{project.status}</span>
+        <div className="head-controls">
+          <span className={`status-pill status-${project.status}`}>{project.status}</span>
+          {isDevAdmin(user?.role) && (
+            <button className="btn ghost danger" onClick={deleteProject}>
+              Delete project
+            </button>
+          )}
+        </div>
       </div>
 
       <nav className="tabs">

@@ -10,7 +10,7 @@ from app.auth import (
     verify_password,
 )
 from app.database import get_db
-from app.models import User, UserRole
+from app.models import Project, ProjectMember, User, UserRole
 from app.permissions import ALL_ADMINS
 from app.services import notify
 from app.schemas import LoginRequest, TokenResponse, UserCreate, UserOut
@@ -75,6 +75,11 @@ def create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+    # Grant the user access to the selected projects (relevant for clients).
+    for pid in set(payload.project_ids):
+        if db.get(Project, pid):
+            db.add(ProjectMember(project_id=pid, user_id=user.id))
+    db.commit()
     # Welcome email with credentials (background; no-op without Resend key).
     background.add_task(
         notify.user_welcome, user.email, user.name, role_value, payload.password

@@ -11,6 +11,7 @@ from fastapi import (
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app.access import ensure_member, require_project_access
 from app.auth import get_current_user, require_roles
 from app.database import get_db
 from app.models import (
@@ -100,6 +101,7 @@ def list_deliverables(
     db: Session = Depends(get_db),
 ):
     _get_project_or_404(db, project_id)
+    require_project_access(db, current, project_id)
     q = db.query(Deliverable).filter(Deliverable.project_id == project_id)
     # Externals (clients) only ever see client-visible deliverables.
     if client_only or not _is_internal(current):
@@ -133,6 +135,8 @@ def create_deliverable(
     if d.assignee_id:
         assignee = db.get(User, d.assignee_id)
         if assignee:
+            # Assigning a deliverable grants the assignee access to the project.
+            ensure_member(db, assignee.id, project_id)
             background.add_task(
                 notify.deliverable_assigned,
                 assignee.email, assignee.name, d.title, project.name, project_id,
@@ -154,8 +158,9 @@ def update_deliverable(
     prev_assignee = d.assignee_id
 
     data = payload.model_dump(exclude_unset=True)
-    if "client_visible" in data and data["client_visible"] is not None:
-        data["client_visible"] = 1 if data["client_visible"] else 0
+    for bool_field in ("client_visible", "completed"):
+        if bool_field in data and data[bool_field] is not None:
+            data[bool_field] = 1 if data[bool_field] else 0
     for k, v in data.items():
         setattr(d, k, v)
     db.commit()
@@ -164,6 +169,7 @@ def update_deliverable(
     if d.assignee_id and d.assignee_id != prev_assignee:
         assignee = db.get(User, d.assignee_id)
         if assignee:
+            ensure_member(db, assignee.id, project_id)
             background.add_task(
                 notify.deliverable_assigned,
                 assignee.email, assignee.name, d.title, project.name, project_id,
@@ -222,6 +228,18 @@ def analyze_deliverable(
 ):
     project = _get_project_or_404(db, project_id)
     d = _get_deliverable(db, project_id, deliverable_id)
+
+    # AI analysis is only meaningful once documentation has been submitted.
+    has_files = (
+        db.query(DeliverableFile)
+        .filter(DeliverableFile.deliverable_id == deliverable_id)
+        .count()
+    )
+    if not has_files:
+        raise HTTPException(
+            status_code=400,
+            detail="Upload at least one document before running AI analysis.",
+        )
 
     result = grok.analyze_deliverable(
         master_plan=project.master_plan,
