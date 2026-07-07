@@ -12,6 +12,9 @@ dist/
 .vite/
 *.tsbuildinfo
 
+# Bundled SPA (produced by the root Dockerfile build)
+backend/app/static/
+
 # Env
 .env
 .env.local
