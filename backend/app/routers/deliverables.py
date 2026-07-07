@@ -2,8 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, require_role
+from app.auth import get_current_user, require_roles
 from app.database import get_db
+from app.permissions import DEV_ADMINS
 from app.models import (
     AIAnalysis,
     Deliverable,
@@ -65,7 +66,7 @@ def list_deliverables(
 def create_deliverable(
     project_id: int,
     payload: DeliverableCreate,
-    _: User = Depends(require_role(UserRole.admin)),
+    _: User = Depends(require_roles(DEV_ADMINS)),
     db: Session = Depends(get_db),
 ):
     _get_project_or_404(db, project_id)
@@ -89,7 +90,7 @@ def update_deliverable(
     project_id: int,
     deliverable_id: int,
     payload: DeliverableUpdate,
-    _: User = Depends(require_role(UserRole.admin)),
+    _: User = Depends(require_roles(DEV_ADMINS)),
     db: Session = Depends(get_db),
 ):
     d = db.get(Deliverable, deliverable_id)
@@ -109,7 +110,7 @@ def update_deliverable(
 def delete_deliverable(
     project_id: int,
     deliverable_id: int,
-    _: User = Depends(require_role(UserRole.admin)),
+    _: User = Depends(require_roles(DEV_ADMINS)),
     db: Session = Depends(get_db),
 ):
     d = db.get(Deliverable, deliverable_id)

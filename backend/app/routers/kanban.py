@@ -2,9 +2,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_roles
 from app.database import get_db
 from app.models import KanbanCard, Project, User
+from app.permissions import DEV_TEAM
 from app.schemas import KanbanCardCreate, KanbanCardOut, KanbanCardUpdate
 
 router = APIRouter(prefix="/api/projects/{project_id}/cards", tags=["kanban"])
@@ -45,7 +46,7 @@ def list_cards(
 def create_card(
     project_id: int,
     payload: KanbanCardCreate,
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(DEV_TEAM)),
     db: Session = Depends(get_db),
 ):
     _project_or_404(db, project_id)
@@ -76,7 +77,7 @@ def update_card(
     project_id: int,
     card_id: int,
     payload: KanbanCardUpdate,
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(DEV_TEAM)),
     db: Session = Depends(get_db),
 ):
     card = db.get(KanbanCard, card_id)
@@ -93,7 +94,7 @@ def update_card(
 def delete_card(
     project_id: int,
     card_id: int,
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(DEV_TEAM)),
     db: Session = Depends(get_db),
 ):
     card = db.get(KanbanCard, card_id)

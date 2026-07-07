@@ -2,8 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 
-from app.auth import get_current_user, require_role
+from app.auth import get_current_user, require_roles
 from app.database import get_db
+from app.permissions import DEV_ADMINS
 from app.models import (
     Deliverable,
     PlanPoint,
@@ -33,7 +34,7 @@ def list_projects(
 @router.post("", response_model=ProjectOut, status_code=201)
 def create_project(
     payload: ProjectCreate,
-    _: User = Depends(require_role(UserRole.admin)),
+    _: User = Depends(require_roles(DEV_ADMINS)),
     db: Session = Depends(get_db),
 ):
     project = Project(name=payload.name, description=payload.description)
@@ -63,7 +64,7 @@ def get_project(
 def submit_master_plan(
     project_id: int,
     payload: MasterPlanSubmit,
-    _: User = Depends(require_role(UserRole.admin)),
+    _: User = Depends(require_roles(DEV_ADMINS)),
     db: Session = Depends(get_db),
 ):
     """Submit the master plan. This is step 1 of configuring a project.
@@ -122,7 +123,7 @@ def submit_master_plan(
 @router.delete("/{project_id}", status_code=204)
 def delete_project(
     project_id: int,
-    _: User = Depends(require_role(UserRole.admin)),
+    _: User = Depends(require_roles(DEV_ADMINS)),
     db: Session = Depends(get_db),
 ):
     project = db.get(Project, project_id)

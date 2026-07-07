@@ -6,11 +6,12 @@ from app.auth import (
     create_access_token,
     get_current_user,
     hash_password,
-    require_role,
+    require_roles,
     verify_password,
 )
 from app.database import get_db
 from app.models import User, UserRole
+from app.permissions import ALL_ADMINS
 from app.schemas import LoginRequest, TokenResponse, UserCreate, UserOut
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -40,19 +41,33 @@ def list_users(
     return db.query(User).order_by(User.name).all()
 
 
+# Which roles each admin type is allowed to create.
+_CREATABLE: dict[str, set[UserRole]] = {
+    UserRole.admin.value: set(UserRole),  # super admin: any role
+    UserRole.admin_dev.value: {UserRole.dev, UserRole.admin_dev, UserRole.client},
+    UserRole.admin_comercial.value: {UserRole.comercial, UserRole.admin_comercial},
+}
+
+
 @router.post("/users", response_model=UserOut, status_code=201)
 def create_user(
     payload: UserCreate,
-    _: User = Depends(require_role(UserRole.admin)),
+    creator: User = Depends(require_roles(ALL_ADMINS)),
     db: Session = Depends(get_db),
 ):
+    allowed = _CREATABLE.get(creator.role, set())
+    if payload.role not in {r.value for r in allowed}:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your role ({creator.role}) cannot create '{payload.role}' users.",
+        )
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=409, detail="Email already registered")
     user = User(
         email=payload.email,
         name=payload.name,
         password_hash=hash_password(payload.password),
-        role=payload.role,
+        role=payload.role.value if hasattr(payload.role, "value") else payload.role,
     )
     db.add(user)
     db.commit()

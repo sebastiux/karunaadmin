@@ -1,4 +1,31 @@
-export type Role = "admin" | "developer" | "client";
+export type Role =
+  | "admin"
+  | "admin_dev"
+  | "admin_comercial"
+  | "dev"
+  | "comercial"
+  | "client";
+
+export const ROLE_LABELS: Record<Role, string> = {
+  admin: "Super admin",
+  admin_dev: "Admin · Dev",
+  admin_comercial: "Admin · Commercial",
+  dev: "Dev team",
+  comercial: "Commercial team",
+  client: "Client",
+};
+
+// ---- role capability helpers (mirror backend permissions.py) ----
+export const isSuper = (r?: Role) => r === "admin";
+export const isDevAdmin = (r?: Role) => r === "admin" || r === "admin_dev";
+export const isCommercialAdmin = (r?: Role) =>
+  r === "admin" || r === "admin_comercial";
+export const isAnyAdmin = (r?: Role) =>
+  r === "admin" || r === "admin_dev" || r === "admin_comercial";
+export const isDevTeam = (r?: Role) =>
+  r === "admin" || r === "admin_dev" || r === "dev";
+export const isCommercialTeam = (r?: Role) =>
+  r === "admin" || r === "admin_comercial" || r === "comercial";
 
 export interface User {
   id: number;
@@ -107,4 +134,60 @@ export interface MonitoringOverview {
   completed_deliverables: number;
   avg_ai_score: number | null;
   points: PlanPointProgress[];
+}
+
+export interface ProjectFile {
+  id: number;
+  project_id: number;
+  filename: string;
+  content_type: string;
+  size: number;
+  extracted_chars: number;
+  created_at: string;
+}
+
+export type CommercialColumnId =
+  | "lead"
+  | "contacted"
+  | "qualified"
+  | "proposal"
+  | "won"
+  | "lost";
+
+export interface CommercialBoard {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+export interface CommercialCard {
+  id: number;
+  board_id: number;
+  title: string;
+  description: string;
+  company: string;
+  contact: string;
+  estimated_value: number;
+  column: CommercialColumnId;
+  assignee_id: number | null;
+  assignee_name: string | null;
+  priority: "low" | "medium" | "high";
+  order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Ticket {
+  id: number;
+  project_id: number;
+  project_name: string;
+  title: string;
+  description: string;
+  column: KanbanColumnId;
+  assignee_id: number | null;
+  assignee_name: string | null;
+  pr_url: string;
+  priority: "low" | "medium" | "high";
+  updated_at: string;
 }

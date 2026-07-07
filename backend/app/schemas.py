@@ -33,7 +33,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     name: str
     password: str
-    role: UserRole = UserRole.developer
+    role: UserRole = UserRole.dev
 
 
 class UserOut(ORMModel):
@@ -177,6 +177,90 @@ class MonitoringOverview(BaseModel):
     completed_deliverables: int
     avg_ai_score: float | None
     points: list[PlanPointProgress]
+
+
+# --------------------------- Files -------------------------------------- #
+class ProjectFileOut(ORMModel):
+    id: int
+    project_id: int
+    filename: str
+    content_type: str
+    size: int
+    extracted_chars: int = 0
+    created_at: datetime
+
+
+class FileUploadResult(BaseModel):
+    file: ProjectFileOut
+    extracted_text: str  # returned so the client can prefill the plan editor
+
+
+# --------------------------- Commercial --------------------------------- #
+class CommercialBoardCreate(BaseModel):
+    name: str
+    description: str = ""
+
+
+class CommercialBoardOut(ORMModel):
+    id: int
+    name: str
+    description: str
+    created_at: datetime
+
+
+class CommercialCardCreate(BaseModel):
+    title: str
+    description: str = ""
+    company: str = ""
+    contact: str = ""
+    estimated_value: float = 0.0
+    column: str = "lead"
+    assignee_id: int | None = None
+    priority: str = "medium"
+
+
+class CommercialCardUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    company: str | None = None
+    contact: str | None = None
+    estimated_value: float | None = None
+    column: str | None = None
+    assignee_id: int | None = None
+    priority: str | None = None
+    order: int | None = None
+
+
+class CommercialCardOut(ORMModel):
+    id: int
+    board_id: int
+    title: str
+    description: str
+    company: str
+    contact: str
+    estimated_value: float
+    column: str
+    assignee_id: int | None
+    assignee_name: str | None = None
+    priority: str
+    order: int
+    created_at: datetime
+    updated_at: datetime
+
+
+# --------------------------- Tickets (cross-project) -------------------- #
+class TicketOut(BaseModel):
+    id: int
+    project_id: int
+    project_name: str
+    title: str
+    description: str
+    column: KanbanColumn
+    assignee_id: int | None
+    assignee_name: str | None
+    pr_url: str
+    priority: str
+    updated_at: datetime
 
 
 TokenResponse.model_rebuild()

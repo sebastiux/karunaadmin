@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api";
-import type { ProjectDetail } from "../types";
+import { isDevAdmin, type ProjectDetail } from "../types";
 import { useAuth } from "../auth";
 import SetupPanel from "../panels/SetupPanel";
 import CodeReviewPanel from "../panels/CodeReviewPanel";
@@ -72,11 +72,11 @@ export default function ProjectView() {
 
       <section className="panel">
         {tab === "setup" && (
-          <SetupPanel project={project} isAdmin={user?.role === "admin"} onSaved={load} />
+          <SetupPanel project={project} isAdmin={isDevAdmin(user?.role)} onSaved={load} />
         )}
         {tab === "code" && <CodeReviewPanel projectId={projectId} />}
         {tab === "deliverables" && (
-          <DeliverablesPanel project={project} isAdmin={user?.role === "admin"} />
+          <DeliverablesPanel project={project} isAdmin={isDevAdmin(user?.role)} />
         )}
         {tab === "monitoring" && <MonitoringPanel projectId={projectId} />}
       </section>

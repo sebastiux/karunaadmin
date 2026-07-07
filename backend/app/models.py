@@ -25,6 +25,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     func,
@@ -38,9 +39,12 @@ from app.database import Base
 # Enums
 # --------------------------------------------------------------------------- #
 class UserRole(str, enum.Enum):
-    admin = "admin"
-    developer = "developer"
-    client = "client"
+    admin = "admin"                      # super admin — full access everywhere
+    admin_dev = "admin_dev"              # full access, dev-focused
+    admin_comercial = "admin_comercial"  # manages the commercial team & boards
+    dev = "dev"                          # dev team member
+    comercial = "comercial"              # commercial team member
+    client = "client"                    # read-only client monitoring
 
 
 class ProjectStatus(str, enum.Enum):
@@ -76,7 +80,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
     password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.developer)
+    # Stored as a plain string (not a DB ENUM) so new roles can be added without
+    # a schema migration. Values come from UserRole.
+    role: Mapped[str] = mapped_column(String(32), default=UserRole.dev.value)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
@@ -194,4 +200,79 @@ class KanbanCard(Base):
     )
 
     project: Mapped["Project"] = relationship(back_populates="cards")
+    assignee: Mapped["User"] = relationship()
+
+
+class ProjectFile(Base):
+    """An uploaded document attached to a project (master-plan source, specs…).
+
+    Stored in the DB so files survive Railway's ephemeral filesystem. Text is
+    extracted from PDF/DOCX/TXT/MD on upload so it can feed the AI generator.
+    """
+
+    __tablename__ = "project_files"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    filename: Mapped[str] = mapped_column(String(500))
+    content_type: Mapped[str] = mapped_column(String(200), default="")
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    data: Mapped[bytes] = mapped_column(LargeBinary)          # raw file bytes
+    extracted_text: Mapped[str] = mapped_column(Text, default="")
+    uploaded_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+# --------------------------------------------------------------------------- #
+# Commercial workspace — AI-free boards for sourcing NEW IT projects.
+# Global (not tied to a delivery Project); worked by the commercial team.
+# --------------------------------------------------------------------------- #
+class CommercialColumn(str, enum.Enum):
+    lead = "lead"
+    contacted = "contacted"
+    qualified = "qualified"
+    proposal = "proposal"
+    won = "won"
+    lost = "lost"
+
+
+class CommercialBoard(Base):
+    __tablename__ = "commercial_boards"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    cards: Mapped[list["CommercialCard"]] = relationship(
+        back_populates="board", cascade="all, delete-orphan"
+    )
+
+
+class CommercialCard(Base):
+    __tablename__ = "commercial_cards"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    board_id: Mapped[int] = mapped_column(
+        ForeignKey("commercial_boards.id", ondelete="CASCADE")
+    )
+    title: Mapped[str] = mapped_column(String(500))
+    description: Mapped[str] = mapped_column(Text, default="")
+    company: Mapped[str] = mapped_column(String(255), default="")
+    contact: Mapped[str] = mapped_column(String(255), default="")
+    estimated_value: Mapped[float] = mapped_column(Float, default=0.0)
+    column: Mapped[str] = mapped_column(String(32), default=CommercialColumn.lead.value)
+    assignee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    priority: Mapped[str] = mapped_column(String(20), default="medium")
+    order: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    board: Mapped["CommercialBoard"] = relationship(back_populates="cards")
     assignee: Mapped["User"] = relationship()

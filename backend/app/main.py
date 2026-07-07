@@ -9,7 +9,16 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.routers import auth, deliverables, kanban, monitoring, projects
+from app.routers import (
+    auth,
+    commercial,
+    deliverables,
+    files,
+    kanban,
+    monitoring,
+    projects,
+    tickets,
+)
 from app.seed import init_db
 from app.services.grok import grok
 
@@ -48,9 +57,12 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(projects.router)
+app.include_router(files.router)
 app.include_router(deliverables.router)
 app.include_router(kanban.router)
 app.include_router(monitoring.router)
+app.include_router(commercial.router)
+app.include_router(tickets.router)
 
 
 @app.get("/api/health", tags=["health"])

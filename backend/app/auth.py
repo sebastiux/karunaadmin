@@ -32,7 +32,7 @@ def create_access_token(user: User) -> str:
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.access_token_expire_minutes
     )
-    payload = {"sub": str(user.id), "role": user.role.value, "exp": expire}
+    payload = {"sub": str(user.id), "role": user.role, "exp": expire}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
@@ -65,9 +65,10 @@ def get_current_user(
 
 def require_role(*roles: UserRole):
     """Dependency factory: restrict an endpoint to the given roles."""
+    allowed = {r.value if isinstance(r, UserRole) else str(r) for r in roles}
 
     def checker(user: User = Depends(get_current_user)) -> User:
-        if roles and user.role not in roles:
+        if allowed and user.role not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions",
@@ -75,3 +76,8 @@ def require_role(*roles: UserRole):
         return user
 
     return checker
+
+
+def require_roles(roles: set):
+    """Same as require_role but takes a set (e.g. a group from permissions.py)."""
+    return require_role(*roles)

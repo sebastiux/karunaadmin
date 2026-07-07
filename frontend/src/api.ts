@@ -1,11 +1,16 @@
 import type {
   AIAnalysis,
+  CommercialBoard,
+  CommercialCard,
   Deliverable,
   KanbanCard,
   KanbanColumnId,
   MonitoringOverview,
   Project,
   ProjectDetail,
+  ProjectFile,
+  Role,
+  Ticket,
   User,
 } from "./types";
 
@@ -140,4 +145,87 @@ export const api = {
   // monitoring
   monitoring: (projectId: number) =>
     request<MonitoringOverview>(`/api/projects/${projectId}/monitoring`),
+
+  // users
+  createUser: (body: {
+    email: string;
+    name: string;
+    password: string;
+    role: Role;
+  }) =>
+    request<User>("/api/auth/users", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  // files
+  files: (projectId: number) =>
+    request<ProjectFile[]>(`/api/projects/${projectId}/files`),
+  uploadFile: async (projectId: number, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`${BASE}/api/projects/${projectId}/files`, {
+      method: "POST",
+      headers, // no Content-Type: browser sets multipart boundary
+      body: form,
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        detail = (await res.json()).detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail || "Upload failed");
+    }
+    return res.json() as Promise<{ file: ProjectFile; extracted_text: string }>;
+  },
+  deleteFile: (projectId: number, fileId: number) =>
+    request<void>(`/api/projects/${projectId}/files/${fileId}`, {
+      method: "DELETE",
+    }),
+  downloadFile: async (projectId: number, f: ProjectFile) => {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(
+      `${BASE}/api/projects/${projectId}/files/${f.id}/download`,
+      { headers }
+    );
+    if (!res.ok) throw new Error("Download failed");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = f.filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  // commercial workspace
+  commercialBoards: () =>
+    request<CommercialBoard[]>("/api/commercial/boards"),
+  createCommercialBoard: (name: string, description: string) =>
+    request<CommercialBoard>("/api/commercial/boards", {
+      method: "POST",
+      body: JSON.stringify({ name, description }),
+    }),
+  commercialCards: (boardId: number) =>
+    request<CommercialCard[]>(`/api/commercial/boards/${boardId}/cards`),
+  createCommercialCard: (boardId: number, body: Partial<CommercialCard>) =>
+    request<CommercialCard>(`/api/commercial/boards/${boardId}/cards`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateCommercialCard: (cardId: number, body: Partial<CommercialCard>) =>
+    request<CommercialCard>(`/api/commercial/cards/${cardId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  deleteCommercialCard: (cardId: number) =>
+    request<void>(`/api/commercial/cards/${cardId}`, { method: "DELETE" }),
+
+  // cross-project tickets
+  tickets: () => request<Ticket[]>("/api/tickets"),
 };

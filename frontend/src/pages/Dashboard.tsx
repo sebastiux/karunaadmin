@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
-import type { Project } from "../types";
+import { isDevAdmin, type Project } from "../types";
 import { useAuth } from "../auth";
 
 export default function Dashboard() {
@@ -47,7 +47,7 @@ export default function Dashboard() {
           <h1>Projects</h1>
           <p className="muted">Administer projects across code review, deliverables and client monitoring.</p>
         </div>
-        {user?.role === "admin" && (
+        {isDevAdmin(user?.role) && (
           <button className="btn primary" onClick={() => setShowNew(true)}>
             + New project
           </button>
@@ -59,7 +59,7 @@ export default function Dashboard() {
       ) : projects.length === 0 ? (
         <div className="empty-state">
           <p>No projects yet.</p>
-          {user?.role === "admin" && (
+          {isDevAdmin(user?.role) && (
             <button className="btn primary" onClick={() => setShowNew(true)}>
               Create your first project
             </button>
