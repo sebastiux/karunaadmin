@@ -165,6 +165,7 @@ class KanbanCardUpdate(BaseModel):
 class KanbanCardOut(ORMModel):
     id: int
     project_id: int
+    ticket_number: str
     title: str
     description: str
     column: KanbanColumn
@@ -173,8 +174,18 @@ class KanbanCardOut(ORMModel):
     pr_url: str
     priority: str
     order: int
+    image_count: int = 0
     created_at: datetime
     updated_at: datetime
+
+
+class KanbanCardImageOut(ORMModel):
+    id: int
+    card_id: int
+    filename: str
+    content_type: str
+    size: int
+    created_at: datetime
 
 
 # --------------------------- Monitoring --------------------------------- #
@@ -304,6 +315,7 @@ class TicketOut(BaseModel):
     id: int
     project_id: int
     project_name: str
+    ticket_number: str = ""
     title: str
     description: str
     column: KanbanColumn

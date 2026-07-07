@@ -82,6 +82,7 @@ export default function TicketMonitor() {
                 {byColumn[col.id].map((t) => (
                   <div key={t.id} className="kcard">
                     <div className="kcard-top">
+                      <span className="ticket-no">{t.ticket_number}</span>
                       <span className={`prio prio-${t.priority}`}>{t.priority}</span>
                     </div>
                     <div className="kcard-title">{t.title}</div>

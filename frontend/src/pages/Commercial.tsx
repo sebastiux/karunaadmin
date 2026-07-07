@@ -25,6 +25,7 @@ export default function Commercial() {
   const [dragId, setDragId] = useState<number | null>(null);
   const [overCol, setOverCol] = useState<CommercialColumnId | null>(null);
   const [composeCol, setComposeCol] = useState<CommercialColumnId | null>(null);
+  const [editing, setEditing] = useState<CommercialCard | null>(null);
   const [newBoard, setNewBoard] = useState(false);
 
   useEffect(() => {
@@ -132,9 +133,12 @@ export default function Commercial() {
                     >
                       <div className="kcard-top">
                         <span className={`prio prio-${card.priority}`}>{card.priority}</span>
-                        <button className="kcard-del" onClick={() => remove(card.id)}>×</button>
+                        <div className="kcard-actions">
+                          <button className="kcard-edit" onClick={() => setEditing(card)} title="Edit">✎</button>
+                          <button className="kcard-del" onClick={() => remove(card.id)}>×</button>
+                        </div>
                       </div>
-                      <div className="kcard-title">{card.title}</div>
+                      <div className="kcard-title" onClick={() => setEditing(card)}>{card.title}</div>
                       {card.company && <div className="kcard-company">{card.company}</div>}
                       {card.estimated_value > 0 && (
                         <div className="kcard-value">${card.estimated_value.toLocaleString()}</div>
@@ -159,6 +163,15 @@ export default function Commercial() {
           users={users}
           onClose={() => setComposeCol(null)}
           onCreated={(c) => setCards((cs) => [...cs, c])}
+        />
+      )}
+
+      {editing && (
+        <CommercialCardEditor
+          card={editing}
+          users={users}
+          onClose={() => setEditing(null)}
+          onSaved={(c) => setCards((cs) => cs.map((x) => (x.id === c.id ? c : x)))}
         />
       )}
 
@@ -248,6 +261,105 @@ function CardComposer({
         <div className="modal-actions">
           <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" disabled={busy}>{busy ? "Adding…" : "Add"}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const COLUMN_OPTS: { id: CommercialColumnId; label: string }[] = COLUMNS;
+
+function CommercialCardEditor({
+  card, users, onClose, onSaved,
+}: {
+  card: CommercialCard;
+  users: User[];
+  onClose: () => void;
+  onSaved: (c: CommercialCard) => void;
+}) {
+  const [f, setF] = useState({
+    title: card.title,
+    description: card.description,
+    company: card.company,
+    contact: card.contact,
+    estimated_value: String(card.estimated_value || ""),
+    column: card.column,
+    priority: card.priority,
+    assignee: (card.assignee_id ?? "") as number | "",
+  });
+  const [busy, setBusy] = useState(false);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const updated = await api.updateCommercialCard(card.id, {
+        title: f.title,
+        description: f.description,
+        company: f.company,
+        contact: f.contact,
+        estimated_value: Number(f.estimated_value) || 0,
+        column: f.column,
+        priority: f.priority,
+        assignee_id: f.assignee === "" ? null : Number(f.assignee),
+      });
+      onSaved(updated);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={save}>
+        <h2>Edit opportunity</h2>
+        <label>Title</label>
+        <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required />
+        <label>Description</label>
+        <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={3} />
+        <div className="form-row">
+          <div>
+            <label>Company</label>
+            <input value={f.company} onChange={(e) => setF({ ...f, company: e.target.value })} />
+          </div>
+          <div>
+            <label>Contact</label>
+            <input value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value })} />
+          </div>
+        </div>
+        <div className="form-row">
+          <div>
+            <label>Estimated value (USD)</label>
+            <input type="number" value={f.estimated_value} onChange={(e) => setF({ ...f, estimated_value: e.target.value })} />
+          </div>
+          <div>
+            <label>Stage</label>
+            <select value={f.column} onChange={(e) => setF({ ...f, column: e.target.value as CommercialColumnId })}>
+              {COLUMN_OPTS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="form-row">
+          <div>
+            <label>Priority</label>
+            <select value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value as any })}>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div>
+            <label>Assignee</label>
+            <select value={f.assignee} onChange={(e) => setF({ ...f, assignee: e.target.value === "" ? "" : Number(e.target.value) })}>
+              <option value="">Unassigned</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save changes"}</button>
         </div>
       </form>
     </div>

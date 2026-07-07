@@ -8,6 +8,7 @@ import type {
   DocRequestFile,
   DocRequestStatus,
   KanbanCard,
+  KanbanCardImage,
   KanbanColumnId,
   MonitoringOverview,
   Project,
@@ -199,6 +200,48 @@ export const api = {
     request<void>(`/api/projects/${projectId}/cards/${id}`, {
       method: "DELETE",
     }),
+  cardImages: (projectId: number, cardId: number) =>
+    request<KanbanCardImage[]>(`/api/projects/${projectId}/cards/${cardId}/images`),
+  uploadCardImage: async (
+    projectId: number,
+    cardId: number,
+    file: File | Blob,
+    filename = "pasted-image.png"
+  ) => {
+    const form = new FormData();
+    form.append("file", file, (file as File).name || filename);
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(
+      `${BASE}/api/projects/${projectId}/cards/${cardId}/images`,
+      { method: "POST", headers, body: form }
+    );
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        detail = (await res.json()).detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail || "Upload failed");
+    }
+    return res.json() as Promise<KanbanCardImage>;
+  },
+  cardImagePath: (projectId: number, cardId: number, imageId: number) =>
+    `/api/projects/${projectId}/cards/${cardId}/images/${imageId}/raw`,
+  deleteCardImage: (projectId: number, cardId: number, imageId: number) =>
+    request<void>(
+      `/api/projects/${projectId}/cards/${cardId}/images/${imageId}`,
+      { method: "DELETE" }
+    ),
+  // Fetch a protected binary (image) and return an object URL for <img src>.
+  fetchBlobUrl: async (path: string) => {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`${BASE}${path}`, { headers });
+    if (!res.ok) throw new Error("fetch failed");
+    return URL.createObjectURL(await res.blob());
+  },
 
   // monitoring
   monitoring: (projectId: number) =>

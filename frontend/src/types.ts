@@ -117,6 +117,7 @@ export type KanbanColumnId =
 export interface KanbanCard {
   id: number;
   project_id: number;
+  ticket_number: string;
   title: string;
   description: string;
   column: KanbanColumnId;
@@ -125,8 +126,18 @@ export interface KanbanCard {
   pr_url: string;
   priority: "low" | "medium" | "high";
   order: number;
+  image_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface KanbanCardImage {
+  id: number;
+  card_id: number;
+  filename: string;
+  content_type: string;
+  size: number;
+  created_at: string;
 }
 
 export interface PlanPointProgress {
@@ -222,6 +233,7 @@ export interface Ticket {
   id: number;
   project_id: number;
   project_name: string;
+  ticket_number: string;
   title: string;
   description: string;
   column: KanbanColumnId;

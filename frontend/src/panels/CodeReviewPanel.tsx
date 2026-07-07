@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
-import type { KanbanCard, KanbanColumnId, User } from "../types";
+import AuthImage from "../components/AuthImage";
+import type { KanbanCard, KanbanCardImage, KanbanColumnId, User } from "../types";
 
 const COLUMNS: { id: KanbanColumnId; label: string }[] = [
   { id: "backlog", label: "Backlog" },
@@ -18,6 +19,7 @@ export default function CodeReviewPanel({ projectId }: { projectId: number }) {
   const [dragId, setDragId] = useState<number | null>(null);
   const [overCol, setOverCol] = useState<KanbanColumnId | null>(null);
   const [composeCol, setComposeCol] = useState<KanbanColumnId | null>(null);
+  const [editing, setEditing] = useState<KanbanCard | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   async function load() {
@@ -128,15 +130,18 @@ export default function CodeReviewPanel({ projectId }: { projectId: number }) {
                   onDragEnd={() => setDragId(null)}
                 >
                   <div className="kcard-top">
+                    <span className="ticket-no">{card.ticket_number}</span>
                     <span className={`prio prio-${card.priority}`}>{card.priority}</span>
-                    <button className="kcard-del" onClick={() => remove(card.id)} title="Delete">
-                      ×
-                    </button>
+                    <div className="kcard-actions">
+                      <button className="kcard-edit" onClick={() => setEditing(card)} title="Edit">✎</button>
+                      <button className="kcard-del" onClick={() => remove(card.id)} title="Delete">×</button>
+                    </div>
                   </div>
-                  <div className="kcard-title">{card.title}</div>
+                  <div className="kcard-title" onClick={() => setEditing(card)}>{card.title}</div>
                   {card.description && <div className="kcard-desc">{card.description}</div>}
                   <div className="kcard-foot">
                     {card.assignee_name && <span className="assignee">{card.assignee_name}</span>}
+                    {card.image_count > 0 && <span className="img-badge">🖼 {card.image_count}</span>}
                     {card.pr_url && (
                       <a href={card.pr_url} target="_blank" rel="noreferrer" className="pr-link">
                         PR ↗
@@ -161,6 +166,19 @@ export default function CodeReviewPanel({ projectId }: { projectId: number }) {
           onClose={() => setComposeCol(null)}
           onCreated={(c) => {
             setCards((cs) => [...cs, c]);
+            broadcast();
+          }}
+        />
+      )}
+
+      {editing && (
+        <CardEditor
+          projectId={projectId}
+          card={editing}
+          users={users}
+          onClose={() => setEditing(null)}
+          onSaved={(c) => {
+            setCards((cs) => cs.map((x) => (x.id === c.id ? c : x)));
             broadcast();
           }}
         />
@@ -240,6 +258,158 @@ function CardComposer({
         <div className="modal-actions">
           <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" disabled={busy}>{busy ? "Adding…" : "Add card"}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function CardEditor({
+  projectId, card, users, onClose, onSaved,
+}: {
+  projectId: number;
+  card: KanbanCard;
+  users: User[];
+  onClose: () => void;
+  onSaved: (c: KanbanCard) => void;
+}) {
+  const [f, setF] = useState({
+    title: card.title,
+    description: card.description,
+    column: card.column,
+    priority: card.priority,
+    pr_url: card.pr_url,
+    assignee: (card.assignee_id ?? "") as number | "",
+  });
+  const [images, setImages] = useState<KanbanCardImage[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [note, setNote] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function loadImages() {
+    setImages(await api.cardImages(projectId, card.id));
+  }
+  useEffect(() => { loadImages(); }, [card.id]);
+
+  async function uploadFiles(files: (File | Blob)[]) {
+    if (!files.length) return;
+    setUploading(true);
+    setNote("");
+    try {
+      for (const file of files) await api.uploadCardImage(projectId, card.id, file);
+      await loadImages();
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // Paste a screenshot straight from the clipboard.
+  async function onPaste(e: React.ClipboardEvent) {
+    const imgs: File[] = [];
+    for (const item of Array.from(e.clipboardData.items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) imgs.push(file);
+      }
+    }
+    if (imgs.length) {
+      e.preventDefault();
+      await uploadFiles(imgs);
+      setNote(`Pasted ${imgs.length} image${imgs.length > 1 ? "s" : ""}.`);
+    }
+  }
+
+  async function removeImage(id: number) {
+    await api.deleteCardImage(projectId, card.id, id);
+    await loadImages();
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const updated = await api.updateCard(projectId, card.id, {
+        title: f.title,
+        description: f.description,
+        column: f.column,
+        priority: f.priority,
+        pr_url: f.pr_url,
+        assignee_id: f.assignee === "" ? null : Number(f.assignee),
+      });
+      onSaved(updated);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <form className="modal wide" onClick={(e) => e.stopPropagation()} onSubmit={save} onPaste={onPaste}>
+        <h2>{card.ticket_number} · Edit card</h2>
+        <label>Title</label>
+        <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required />
+        <label>Description</label>
+        <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={3} />
+        <div className="form-row">
+          <div>
+            <label>Column</label>
+            <select value={f.column} onChange={(e) => setF({ ...f, column: e.target.value as any })}>
+              {COLUMNS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label>Priority</label>
+            <select value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value as any })}>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+        <div className="form-row">
+          <div>
+            <label>Assignee</label>
+            <select value={f.assignee} onChange={(e) => setF({ ...f, assignee: e.target.value === "" ? "" : Number(e.target.value) })}>
+              <option value="">Unassigned</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label>Pull request URL</label>
+            <input value={f.pr_url} onChange={(e) => setF({ ...f, pr_url: e.target.value })} placeholder="https://…/pull/12" />
+          </div>
+        </div>
+
+        <label>Reference images (for bug reports)</label>
+        <div
+          className="paste-zone"
+          onClick={() => fileInput.current?.click()}
+          onDrop={(e) => { e.preventDefault(); uploadFiles(Array.from(e.dataTransfer.files)); }}
+          onDragOver={(e) => e.preventDefault()}
+        >
+          <input ref={fileInput} type="file" accept="image/*" multiple hidden
+            onChange={(e) => uploadFiles(Array.from(e.target.files ?? []))} />
+          {uploading ? "Uploading…" : <>Paste a screenshot (Ctrl/⌘+V), click to choose, or drop images here</>}
+        </div>
+        {note && <div className="paste-note">{note}</div>}
+        {images.length > 0 && (
+          <div className="img-grid">
+            {images.map((img) => (
+              <div key={img.id} className="img-thumb">
+                <AuthImage path={api.cardImagePath(projectId, card.id, img.id)} alt={img.filename} />
+                <button type="button" className="img-del" onClick={() => removeImage(img.id)}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="modal-actions">
+          <button type="button" className="btn ghost" onClick={onClose}>Close</button>
+          <button className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save changes"}</button>
         </div>
       </form>
     </div>

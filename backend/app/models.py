@@ -215,6 +215,7 @@ class KanbanCard(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    ticket_number: Mapped[str] = mapped_column(String(32), default="")  # e.g. TKT-0012
     title: Mapped[str] = mapped_column(String(500))
     description: Mapped[str] = mapped_column(Text, default="")
     column: Mapped[KanbanColumn] = mapped_column(
@@ -233,6 +234,28 @@ class KanbanCard(Base):
 
     project: Mapped["Project"] = relationship(back_populates="cards")
     assignee: Mapped["User"] = relationship()
+    images: Mapped[list["KanbanCardImage"]] = relationship(
+        back_populates="card", cascade="all, delete-orphan"
+    )
+
+
+class KanbanCardImage(Base):
+    """A reference image (e.g. a bug screenshot) attached to a Kanban card."""
+
+    __tablename__ = "kanban_card_images"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    card_id: Mapped[int] = mapped_column(ForeignKey("kanban_cards.id", ondelete="CASCADE"))
+    filename: Mapped[str] = mapped_column(String(500), default="image.png")
+    content_type: Mapped[str] = mapped_column(String(200), default="image/png")
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    data: Mapped[bytes] = mapped_column(FileBlob)
+    uploaded_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    card: Mapped["KanbanCard"] = relationship(back_populates="images")
 
 
 class ProjectFile(Base):

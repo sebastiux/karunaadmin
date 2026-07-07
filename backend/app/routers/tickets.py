@@ -35,6 +35,7 @@ def list_tickets(
             id=card.id,
             project_id=card.project_id,
             project_name=project_name,
+            ticket_number=card.ticket_number or "",
             title=card.title,
             description=card.description,
             column=card.column,

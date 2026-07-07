@@ -63,6 +63,8 @@ def _migrate_schema() -> None:
     # 2. New columns added after the deliverables table already existed.
     _ensure_column("deliverables", "assignee_id", "INTEGER NULL")
     _ensure_column("deliverables", "completed", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column("kanban_cards", "ticket_number", "VARCHAR(32) NULL")
+    _backfill_ticket_numbers()
 
     # 3. File blob columns were first created as BLOB (64 KB cap). Widen to
     #    LONGBLOB so real documents fit. Idempotent; MySQL only.
@@ -78,6 +80,28 @@ def _migrate_schema() -> None:
                 logger.info("Widened %s.data -> LONGBLOB", table)
             except Exception as exc:
                 logger.warning("Could not widen %s.data: %s", table, exc)
+
+
+def _backfill_ticket_numbers() -> None:
+    """Give any pre-existing Kanban card a ticket number."""
+    from app.models import KanbanCard
+
+    db = SessionLocal()
+    try:
+        cards = (
+            db.query(KanbanCard)
+            .filter((KanbanCard.ticket_number == "") | (KanbanCard.ticket_number.is_(None)))
+            .all()
+        )
+        for card in cards:
+            card.ticket_number = f"TKT-{card.id:04d}"
+        if cards:
+            db.commit()
+            logger.info("Backfilled %d Kanban ticket numbers", len(cards))
+    except Exception as exc:
+        logger.warning("Ticket-number backfill skipped: %s", exc)
+    finally:
+        db.close()
 
 
 def _ensure_admin() -> None:
