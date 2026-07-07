@@ -63,6 +63,21 @@ def _migrate_schema() -> None:
     # 2. New column added after the deliverables table already existed.
     _ensure_column("deliverables", "assignee_id", "INTEGER NULL")
 
+    # 3. File blob columns were first created as BLOB (64 KB cap). Widen to
+    #    LONGBLOB so real documents fit. Idempotent; MySQL only.
+    if engine.dialect.name == "mysql":
+        insp = inspect(engine)
+        tables = set(insp.get_table_names())
+        for table in ("project_files", "deliverable_files"):
+            if table not in tables:
+                continue
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE {table} MODIFY data LONGBLOB"))
+                logger.info("Widened %s.data -> LONGBLOB", table)
+            except Exception as exc:
+                logger.warning("Could not widen %s.data: %s", table, exc)
+
 
 def _ensure_admin() -> None:
     db = SessionLocal()

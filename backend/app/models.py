@@ -30,9 +30,14 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+# MySQL BLOB caps at 64 KB; use LONGBLOB there (up to 4 GB) for file storage.
+# On SQLite (dev) LargeBinary is unbounded, so the variant is a no-op.
+FileBlob = LargeBinary().with_variant(LONGBLOB(), "mysql")
 
 
 # --------------------------------------------------------------------------- #
@@ -226,7 +231,7 @@ class ProjectFile(Base):
     filename: Mapped[str] = mapped_column(String(500))
     content_type: Mapped[str] = mapped_column(String(200), default="")
     size: Mapped[int] = mapped_column(Integer, default=0)
-    data: Mapped[bytes] = mapped_column(LargeBinary)          # raw file bytes
+    data: Mapped[bytes] = mapped_column(FileBlob)          # raw file bytes
     extracted_text: Mapped[str] = mapped_column(Text, default="")
     uploaded_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -247,7 +252,7 @@ class DeliverableFile(Base):
     filename: Mapped[str] = mapped_column(String(500))
     content_type: Mapped[str] = mapped_column(String(200), default="")
     size: Mapped[int] = mapped_column(Integer, default=0)
-    data: Mapped[bytes] = mapped_column(LargeBinary)
+    data: Mapped[bytes] = mapped_column(FileBlob)
     uploaded_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
