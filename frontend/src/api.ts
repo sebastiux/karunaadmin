@@ -32,8 +32,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
   if (res.status === 401) {
-    setToken(null);
-    throw new Error("Session expired. Please log in again.");
+    // A 401 on a request that carried a token => the session really expired.
+    // A 401 on the login call itself => bad credentials; let the real server
+    // message ("Invalid credentials") surface below instead of masking it.
+    const isLogin = path.endsWith("/api/auth/login");
+    if (token && !isLogin) {
+      setToken(null);
+      throw new Error("Session expired. Please log in again.");
+    }
   }
   if (!res.ok) {
     let detail = res.statusText;

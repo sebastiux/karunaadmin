@@ -5,8 +5,8 @@ import { useAuth } from "../auth";
 export default function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
-  const [email, setEmail] = useState("admin@karuna.app");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -38,6 +38,7 @@ export default function Login() {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
           autoFocus
         />
 
@@ -46,6 +47,7 @@ export default function Login() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
         />
 
         {error && <div className="alert error">{error}</div>}
@@ -54,7 +56,7 @@ export default function Login() {
           {busy ? "Signing in…" : "Sign in"}
         </button>
         <p className="login-hint">
-          Default admin: <code>admin@karuna.app</code> / <code>admin123</code>
+          Sign in with the administrator account for this deployment.
         </p>
       </form>
     </div>
