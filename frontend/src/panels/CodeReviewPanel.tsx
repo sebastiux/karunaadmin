@@ -285,6 +285,7 @@ function CardEditor({
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [note, setNote] = useState("");
+  const [viewing, setViewing] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   async function loadImages() {
@@ -398,12 +399,19 @@ function CardEditor({
         {note && <div className="paste-note">{note}</div>}
         {images.length > 0 && (
           <div className="img-grid">
-            {images.map((img) => (
-              <div key={img.id} className="img-thumb">
-                <AuthImage path={api.cardImagePath(projectId, card.id, img.id)} alt={img.filename} />
-                <button type="button" className="img-del" onClick={() => removeImage(img.id)}>×</button>
-              </div>
-            ))}
+            {images.map((img) => {
+              const path = api.cardImagePath(projectId, card.id, img.id);
+              return (
+                <div key={img.id} className="img-thumb">
+                  <AuthImage
+                    path={path}
+                    alt={img.filename}
+                    onClick={() => setViewing(path)}
+                  />
+                  <button type="button" className="img-del" onClick={() => removeImage(img.id)}>×</button>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -412,6 +420,23 @@ function CardEditor({
           <button className="btn primary" disabled={busy}>{busy ? "Saving…" : "Save changes"}</button>
         </div>
       </form>
+
+      {viewing && (
+        <div
+          className="lightbox"
+          onClick={(e) => { e.stopPropagation(); setViewing(null); }}
+        >
+          <button
+            type="button"
+            className="lightbox-close"
+            onClick={(e) => { e.stopPropagation(); setViewing(null); }}
+            aria-label="Close"
+          >
+            ×
+          </button>
+          <AuthImage path={viewing} alt="Full-size reference" className="lightbox-img" />
+        </div>
+      )}
     </div>
   );
 }
